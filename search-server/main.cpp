@@ -1,4 +1,3 @@
-// Решите загадку: Сколько чисел от 1 до 1000 содержат как минимум одну цифру 3?
 // Напишите ответ здесь: 271
 
 #include <algorithm>
@@ -62,8 +61,9 @@ public:
 
     void AddDocument(int document_id, const string& document) {
         const vector<string> words = SplitIntoWordsNoStop(document);
+        double freq = 1.0 / static_cast<int>(words.size());
         for (const string& word : words) {
-            word_to_document_freqs_[word][document_id] += 1.0 / static_cast<int>(words.size());
+            word_to_document_freqs_[word][document_id] += freq;
         }
         ++document_count_;
     }
@@ -120,6 +120,10 @@ private:
         return query;
     }
 
+    double CalculateWordInverseDocumentFrequency(const string& word) const {
+        return log(document_count_ * 1.0 / word_to_document_freqs_.at(word).size());
+    }
+
     vector<Document> FindAllDocuments(const Query& query) const {
         vector<Document> matched_documents;
         map<int, double> document_to_relevance;
@@ -127,7 +131,7 @@ private:
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
-            double word_idf = log(document_count_ * 1.0 / word_to_document_freqs_.at(word).size());
+            double word_idf = CalculateWordInverseDocumentFrequency(word);
             for (const auto& [document_id, relevance] : word_to_document_freqs_.at(word)) {
                 document_to_relevance[document_id] += word_idf * word_to_document_freqs_.at(word).at(document_id);
             }
@@ -170,5 +174,3 @@ int main() {
             << "relevance = "s << relevance << " }"s << endl;
     }
 }
-
-// Закомитьте изменения и отправьте их в свой репозиторий.
