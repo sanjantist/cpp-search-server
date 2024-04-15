@@ -1,5 +1,3 @@
-// Напишите ответ здесь: 271
-
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -133,7 +131,7 @@ private:
             }
             double word_idf = CalculateWordInverseDocumentFrequency(word);
             for (const auto& [document_id, relevance] : word_to_document_freqs_.at(word)) {
-                document_to_relevance[document_id] += word_idf * word_to_document_freqs_.at(word).at(document_id);
+                document_to_relevance[document_id] += word_idf * relevance;
             }
         }
 
