@@ -106,16 +106,18 @@ public:
         if (count(document_ids_.begin(), document_ids_.end(), document_id) > 0) {
             throw invalid_argument("Document with this id already exists"s);
         }
-        words = SplitIntoWordsNoStop(document);
-        const double inv_word_count = 1.0 / words.size();
-        for (const string& word : words) {
-            if (!IsValidWord(word)) {
-                throw invalid_argument("Invalid character in document"s);
+        try {
+            words = SplitIntoWordsNoStop(document);
+            const double inv_word_count = 1.0 / words.size();
+            for (const string& word : words) {
+                word_to_document_freqs_[word][document_id] += inv_word_count;
             }
-            word_to_document_freqs_[word][document_id] += inv_word_count;
+            documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
+            document_ids_.push_back(document_id);
         }
-        documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
-        document_ids_.push_back(document_id);
+        catch (invalid_argument& e) {
+            cerr << "Error: "s << e.what() << endl;
+        }
     }
 
     template <typename DocumentPredicate>
@@ -138,11 +140,9 @@ public:
 
         sort(matched_documents.begin(), matched_documents.end(),
             [](const Document& lhs, const Document& rhs) {
-                if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
+                if (abs(lhs.relevance - rhs.relevance) < numeric_limits<double>::epsilon()) {
                     return lhs.rating > rhs.rating;
-                } else {
-                    return lhs.relevance > rhs.relevance;
-                }
+                } return lhs.relevance > rhs.relevance;
             });
         if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
             matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
@@ -174,7 +174,13 @@ public:
             }
         }
 
-        Query query = ParseQuery(raw_query);
+        Query query;
+        try {
+            query = ParseQuery(raw_query);
+        }
+        catch (invalid_argument& e) {
+            throw invalid_argument(e.what());
+        }
         vector<string> matched_words;
         for (const string& word : query.plus_words) {
             if (word_to_document_freqs_.count(word) == 0) {
@@ -185,9 +191,6 @@ public:
             }
         }
         for (const string& word : query.minus_words) {
-            if (word[0] == '-') {
-                throw invalid_argument("More than one minus in minus-word"s);
-            }
             if (word.empty()) {
                 throw invalid_argument("No word after '-'"s);
             }
@@ -205,15 +208,11 @@ public:
     }
 
     int GetDocumentId(int index) const {
-        try {
-            return document_ids_.at(index);
-        }
-        catch (out_of_range& e) {
-            cerr << "Error: "s << e.what() << endl;
+        if (index < 0 || index > static_cast<int>(document_ids_.size()) - 1) {
             throw out_of_range("Invalid index"s);
         }
 
-        return SearchServer::INVALID_DOCUMENT_ID;
+        return document_ids_.at(index);
     }
 
 private:
@@ -237,6 +236,9 @@ private:
     vector<string> SplitIntoWordsNoStop(const string& text) const {
         vector<string> words;
         for (const string& word : SplitIntoWords(text)) {
+            if (!IsValidWord(word)) {
+                throw invalid_argument("Invalid character in document"s);
+            }
             if (!IsStopWord(word)) {
                 words.push_back(word);
             }
@@ -267,6 +269,9 @@ private:
         if (text[0] == '-') {
             is_minus = true;
             text = text.substr(1);
+            if (text[0] == '-') {
+                throw invalid_argument("More than one minus in minus-word"s);
+            }
         }
 
         return QueryWord{ text,is_minus,IsStopWord(text) };
