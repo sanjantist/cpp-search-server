@@ -106,18 +106,13 @@ public:
         if (count(document_ids_.begin(), document_ids_.end(), document_id) > 0) {
             throw invalid_argument("Document with this id already exists"s);
         }
-        try {
-            words = SplitIntoWordsNoStop(document);
-            const double inv_word_count = 1.0 / words.size();
-            for (const string& word : words) {
-                word_to_document_freqs_[word][document_id] += inv_word_count;
-            }
-            documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
-            document_ids_.push_back(document_id);
+        words = SplitIntoWordsNoStop(document);
+        const double inv_word_count = 1.0 / words.size();
+        for (const string& word : words) {
+            word_to_document_freqs_[word][document_id] += inv_word_count;
         }
-        catch (invalid_argument& e) {
-            cerr << "Error: "s << e.what() << endl;
-        }
+        documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
+        document_ids_.push_back(document_id);
     }
 
     template <typename DocumentPredicate>
@@ -130,13 +125,7 @@ public:
         }
 
         Query query = ParseQuery(raw_query);
-        vector<Document> matched_documents;
-        try {
-            matched_documents = FindAllDocuments(query, document_predicate);
-        }
-        catch (invalid_argument& e) {
-            throw invalid_argument(e.what());
-        }
+        vector<Document> matched_documents = FindAllDocuments(query, document_predicate);
 
         sort(matched_documents.begin(), matched_documents.end(),
             [](const Document& lhs, const Document& rhs) {
@@ -174,13 +163,7 @@ public:
             }
         }
 
-        Query query;
-        try {
-            query = ParseQuery(raw_query);
-        }
-        catch (invalid_argument& e) {
-            throw invalid_argument(e.what());
-        }
+        Query query = ParseQuery(raw_query);
         vector<string> matched_words;
         for (const string& word : query.plus_words) {
             if (word_to_document_freqs_.count(word) == 0) {
@@ -191,10 +174,6 @@ public:
             }
         }
         for (const string& word : query.minus_words) {
-            if (word.empty()) {
-                throw invalid_argument("No word after '-'"s);
-            }
-
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
@@ -264,6 +243,9 @@ private:
     };
 
     QueryWord ParseQueryWord(string text) const {
+        if (!IsValidWord(text)) {
+            throw invalid_argument("Invalid character"s);
+        }
         bool is_minus = false;
         // Word shouldn't be empty
         if (text[0] == '-') {
@@ -271,6 +253,9 @@ private:
             text = text.substr(1);
             if (text[0] == '-') {
                 throw invalid_argument("More than one minus in minus-word"s);
+            }
+            if (text.empty()) {
+                throw invalid_argument("No word after minus"s);
             }
         }
 
