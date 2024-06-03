@@ -20,7 +20,7 @@ class RequestQueue {
    private:
     struct QueryResult {
         int minute;
-        std::vector<Document> result;
+        int documents_count;
     };
     std::deque<QueryResult> requests_;
     const static int min_in_day_ = 1440;
@@ -40,7 +40,7 @@ inline std::vector<Document> RequestQueue::AddFindRequest(
 
     std::vector<Document> find_request_result =
         server_.FindTopDocuments(raw_query, document_predicate);
-    result.result = find_request_result;
+    result.documents_count = find_request_result.size();
 
     if (requests_.size() != min_in_day_) {
         requests_.push_back(result);

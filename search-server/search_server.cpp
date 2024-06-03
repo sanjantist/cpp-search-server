@@ -1,5 +1,7 @@
 #include "search_server.h"
 
+#include <numeric>
+
 void SearchServer::AddDocument(int document_id, const std::string& document,
                                DocumentStatus status,
                                const std::vector<int>& ratings) {
@@ -83,18 +85,12 @@ int SearchServer::ComputeAverageRating(const std::vector<int>& ratings) {
     if (ratings.empty()) {
         return 0;
     }
-    int rating_sum = 0;
-    for (const int rating : ratings) {
-        rating_sum += rating;
-    }
+    int rating_sum = std::accumulate(ratings.begin(), ratings.end(), 0);
     return rating_sum / static_cast<int>(ratings.size());
 }
 
 SearchServer::QueryWord SearchServer::ParseQueryWord(
     const std::string& text) const {
-    if (text.empty()) {
-        throw std::invalid_argument("Query word is empty"s);
-    }
     std::string word = text;
     bool is_minus = false;
     if (word[0] == '-') {

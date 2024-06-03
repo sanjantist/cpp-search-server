@@ -13,14 +13,7 @@ const int MAX_RESULT_DOCUMENT_COUNT = 5;
 class SearchServer {
    public:
     template <typename StringContainer>
-    explicit SearchServer(const StringContainer& stop_words)
-        : stop_words_(MakeUniqueNonEmptyStrings(
-              stop_words))  // Extract non-empty stop words
-    {
-        if (!all_of(stop_words_.begin(), stop_words_.end(), IsValidWord)) {
-            throw std::invalid_argument("Some of stop words are invalid"s);
-        }
-    }
+    explicit SearchServer(const StringContainer& stop_words);
 
     explicit SearchServer(const std::string& stop_words_text)
         : SearchServer(
@@ -89,6 +82,16 @@ class SearchServer {
         const Query& query, DocumentPredicate document_predicate) const;
 };
 
+template <typename StringContainer>
+inline SearchServer::SearchServer(const StringContainer& stop_words)
+    : stop_words_(MakeUniqueNonEmptyStrings(
+          stop_words))  // Extract non-empty stop words
+{
+    if (!all_of(stop_words_.begin(), stop_words_.end(), IsValidWord)) {
+        throw std::invalid_argument("Some of stop words are invalid"s);
+    }
+}
+
 template <typename DocumentPredicate>
 inline std::vector<Document> SearchServer::FindTopDocuments(
     const std::string& raw_query, DocumentPredicate document_predicate) const {
@@ -98,7 +101,8 @@ inline std::vector<Document> SearchServer::FindTopDocuments(
 
     std::sort(matched_documents.begin(), matched_documents.end(),
               [](const Document& lhs, const Document& rhs) {
-                  if (std::abs(lhs.relevance - rhs.relevance) < 1e-6) {
+                  if (std::abs(lhs.relevance - rhs.relevance) <
+                      std::numeric_limits<double>::epsilon()) {
                       return lhs.rating > rhs.rating;
                   } else {
                       return lhs.relevance > rhs.relevance;
